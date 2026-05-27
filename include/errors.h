@@ -20,7 +20,6 @@
 	X(FILE_NOT_FOUND)
 
 #define AS_ERROR_ENUM(NAME) NAME,
-#define AS_ERROR_STR(NAME) #NAME,
 
 typedef enum {
 	ERROR_ENUMS(AS_ERROR_ENUM)
@@ -34,6 +33,8 @@ typedef struct {
 	const char* typeStr;
 	void* userData;
 } ErrorData;
+
+typedef void(*ErrorCallbackFunction)(ErrorData* data);
 
 #define ThrowError(errType, messageFormat) _ThrowError((ErrorData) {\
 	.line = __LINE__,\
@@ -50,7 +51,8 @@ typedef struct {
 }, messageFormat, __VA_ARGS__)
 
 /* Set the error callback function that is called everytime an error is thrown */
-void SetErrorCallbackFunction(void(*callback)(ErrorData*));
+void PushErrorCallbackFunction(ErrorCallbackFunction callback);
+void PopErrorCallbackFunction();
 
 /* Private error throwing trigger function */
 void _ThrowError(ErrorData error, const char* fmt, ...);
