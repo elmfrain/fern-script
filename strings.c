@@ -18,6 +18,7 @@
 }
 
 static char s_CStringBuffer[C_STR_BUFFER_LENGTH];
+static int s_CStringBufferOffset = 0;
 
 String CopyCStrArenaAlloc(const char* cstr, MemArena* arena) {
 	int cstrLength = strlen(cstr);
@@ -106,15 +107,22 @@ char CharAt(String* str, int index) {
 const char* AsCString(String* str) {
 	STRING_THROW_IF_NULL(str, "");
 
-	int length = str->length < C_STR_BUFFER_LENGTH - 1 ? str->length : C_STR_BUFFER_LENGTH - 1;
+	int length = str->length;
+	if(C_STR_BUFFER_LENGTH <= str->length) {
+		length = C_STR_BUFFER_LENGTH - 1;
+		s_CStringBufferOffset = 0;
+	} else if(C_STR_BUFFER_LENGTH <= (s_CStringBufferOffset + length))
+		s_CStringBufferOffset = 0;
 
-	int i = 0;
-	for(; i < length; i++)
-		s_CStringBuffer[i] = CharAt(str, i);
-
+	int i = s_CStringBufferOffset;
+	for(int j = 0; j < length; i++, j++)
+		s_CStringBuffer[i] = CharAt(str, j);
 	s_CStringBuffer[i] = '\x0';
 
-	return s_CStringBuffer;
+	const char* cstr = s_CStringBuffer + s_CStringBufferOffset;
+	s_CStringBufferOffset += length + 1;
+
+	return cstr;
 }
 
 const char* ToCString(String* str, void* (*allocator)(size_t)) {

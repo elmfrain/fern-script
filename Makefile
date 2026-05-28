@@ -1,8 +1,9 @@
 CC = gcc
-CFLAGS = -Wall -Werror -std=c99 -ggdb
-LDFLAGS =
+FLAGS = -fsanitize=address
+CFLAGS = -Wall -Werror -std=c99 -ggdb $(FLAGS)
+LDFLAGS = $(FLAGS)
 BUILD_DIR = build
-SOURCES = main.c errors.c memarena.c strings.c arrays.c
+SOURCES = main.c errors.c memarena.c strings.c arrays.c lexer.c
 TARGET := $(BUILD_DIR)/fernc
 
 OBJECTS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SOURCES))

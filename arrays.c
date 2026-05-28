@@ -2,17 +2,6 @@
 
 #include "include/errors.h"
 
-#define ARRAY_THROW_IF_NULL(x, ret) {\
-	if(!x) {\
-		ThrowErrorF(NULL_POINTER_ACCESS,\
-			"%s: Tried to use a null array for param %s",\
-			__FUNCTION__,\
-			#x\
-		);\
-		return ret;\
-	}\
-}
-
 ARRAY_TYPES(AS_ARRAY_FUNCS);
 
 // --- All the code below this line is for prototyping new array functions, but is is not used in code outside this translation unit --- ///

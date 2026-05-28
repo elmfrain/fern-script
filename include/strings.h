@@ -9,6 +9,7 @@
 #define ENSURE_STRING_LITERAL(x) ("" x "")
 #define STRING_LENGTH(x) ((sizeof(x) / sizeof(x[0])) - sizeof(x[0]))
 #define ConstString(x) (String) { ENSURE_STRING_LITERAL(x), STRING_LENGTH(x), STRING_LENGTH(x), true }
+#define EmptyString() (String) {}
 
 typedef struct {
 	char* chars;
@@ -45,7 +46,7 @@ const char* ToCString(String* str, void* (*allocator)(size_t));
 int CmpStrings(String* str1, String* str2);
 
 /* Check if a string starts with a prefix */
-bool StrStartWith(String* base, String* prefix);
+bool StrStartsWith(String* base, String* prefix);
 
 /* Check if a string is empty. */
 bool StrIsEmpty(String* str);

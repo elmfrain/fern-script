@@ -13,7 +13,7 @@ static const char* s_ErrorTypeAsStringMap[] = {
 };
 
 static int s_CallbackStackIndex = -1;
-static ErrorCallbackFunction s_CallbackStack[] = {};
+static ErrorCallbackFunction s_CallbackStack[CALLBACK_FUNC_STACK_SIZE] = {};
 
 void PushErrorCallbackFunction(ErrorCallbackFunction callback) {
 	if(s_CallbackStackIndex == CALLBACK_FUNC_STACK_SIZE) {

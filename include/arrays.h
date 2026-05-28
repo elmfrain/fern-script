@@ -25,6 +25,17 @@
 	/* Remove an element from the array, and swap it with the last element to fill the empty spot */\
 	void arrayName##ArrayRemove(arrayName##Array* array, int index, type* removedValue);
 
+#define ARRAY_THROW_IF_NULL(x, ret) {\
+	if(!x) {\
+		ThrowErrorF(NULL_POINTER_ACCESS,\
+			"%s: Tried to use a null array for param %s",\
+			__FUNCTION__,\
+			#x\
+		);\
+		return ret;\
+	}\
+}
+
 #define AS_ARRAY_FUNCS(type, arrayName)\
 	arrayName##Array arrayName##ArrayArenaAlloc(int capacity, MemArena* arena) {\
 		arrayName##Array array = {};\
