@@ -5,7 +5,7 @@
 
 #define LEXER_FIRST_KEYWORD(X) X(LET, let)
 
-/* List of keywords that is used in the scripting language. Can be transformed as enums are strings */
+/* List of keywords that is used in the scripting language. Can be transformed as enums and strings */
 #define LEXER_KEYWORDS(X)\
 	LEXER_FIRST_KEYWORD(X)
 
@@ -25,6 +25,7 @@ typedef enum {
 	TK_OPEN_PAREN,
 	TK_CLOSE_PAREN,
 	TK_BINARY_OPERATOR,
+	TK_UNARY_OPERATOR,
 	TK_ASSIGNMENT_OPERATOR,
 	TK_NUMBER,
 	TK_IDENTIFIER,
@@ -42,6 +43,6 @@ typedef struct {
 LEXER_ARRAY_TYPES(AS_ARRAY_STRUCT)
 LEXER_ARRAY_TYPES(AS_ARRAY_FUNC_DECLARATIONS)
 
-LexerTokenArray LexerTokenize(String* fileName, String* script, MemArena* context);
+LexerTokenArray LexerTokenize(String fileName, String script, MemArena* context);
 
 #endif // LEXER_H

@@ -15,39 +15,39 @@ static const int NUM_KEYWORDS = sizeof(s_LexerKeywords) / sizeof(String);
 
 LEXER_ARRAY_TYPES(AS_ARRAY_FUNCS);
 
-bool IsAlphabetical(char c) {
+static bool IsAlphabetical(char c) {
 	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
-bool IsWhitespace(char c) {
-	return c == ' ' || c == '\t';
+static bool IsWhitespace(char c) {
+	return c == ' ' || c == '\t' || c == '\n';
 }
 
-bool IsDecimal(char c) {
+static bool IsDecimal(char c) {
 	return '0' <= c && c <= '9';
 }
 
-bool IsOctal(char c) {
+static bool IsOctal(char c) {
 	return '0' <= c && c <= '7';
 }
 
-bool IsNonZeroDecimal(char c) {
+static bool IsNonZeroDecimal(char c) {
 	return '1' <= c && c <= '9';
 }
 
-bool IsHexidecimal(char c) {
+static bool IsHexidecimal(char c) {
 	return IsDecimal(c) || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f');
 }
 
-bool IsBinaryOperator(char c) {
+static bool IsBinaryOperator(char c) {
 	return c == '+' || c == '-' || c == '/' || c == '*';
 }
 
-bool IsPlusOrMinus(char c) {
+static bool IsPlusOrMinus(char c) {
 	return c == '+' || c == '-';
 }
 
-bool IsIdentifier(char c) {
+static bool IsIdentifier(char c) {
 	return IsAlphabetical(c) || c == '_';
 }
 
@@ -55,7 +55,7 @@ bool IsIdentifier(char c) {
 #define CurrentChar(checker) (*length < view.length && checker(CharAt((String*) &view, *length)))
 #define RemainingStr() SubString((String*) &view, *length, view.length - *length)
 
-bool IsHexidecimalNumber(StringView view, int* length) {
+static bool IsHexidecimalNumber(StringView view, int* length) {
 	// Hexidecimal number regex: 0[xX][0-9a-fA-F]+
 	*length = 0;
 	if(!CurrentCharEq('0'))
@@ -74,7 +74,7 @@ bool IsHexidecimalNumber(StringView view, int* length) {
 	return true;
 }
 
-bool IsOctalNumber(StringView view, int* length) {
+static bool IsOctalNumber(StringView view, int* length) {
 	// Octal number regex: 0[0-7]*
 	*length = 0;
 	if(!CurrentCharEq('0'))
@@ -86,7 +86,7 @@ bool IsOctalNumber(StringView view, int* length) {
 	return true;
 }
 
-bool IsIntegerNumber(StringView view, int* length) {
+static bool IsIntegerNumber(StringView view, int* length) {
 	// Integer number regex: [1-9][0-9]*
 	*length = 0;
 	if(!CurrentChar(IsNonZeroDecimal))
@@ -98,7 +98,7 @@ bool IsIntegerNumber(StringView view, int* length) {
 	return true;
 }
 
-bool IsSciNotation(StringView view, int* length) {
+static bool IsSciNotation(StringView view, int* length) {
 	// Sci Notation number regex: ([Ee][+-]?{D}+)
 	*length = 0;
 	if(!CurrentCharEq('e') && !CurrentCharEq('E'))
@@ -118,7 +118,7 @@ bool IsSciNotation(StringView view, int* length) {
 	return true;
 }
 
-bool IsFloatingPointNumber(StringView view, int* length) {
+static bool IsFloatingPointNumber(StringView view, int* length) {
 	// Float Sci Notation number regex: [0-9]+{IsSciNotation}
 	*length = 0;
 	for(;; (*length)++) if(!CurrentChar(IsDecimal)) break;
@@ -174,7 +174,7 @@ backPoint:
 	return true;
 }
 
-bool IsNumberToken(StringView view, int* length) {
+static bool IsNumberToken(StringView view, int* length) {
 	if(IsHexidecimalNumber(view, length))
 		return true;
 	if(IsOctalNumber(view, length))
@@ -187,7 +187,7 @@ bool IsNumberToken(StringView view, int* length) {
 	return false;
 }
 
-bool IsIdentifierToken(StringView view, int* length) {
+static bool IsIdentifierToken(StringView view, int* length) {
 	// Indentifier token regex: [a-zA-Z_]([a-zA-Z_]|[0-9])*
 	*length = 0;
 	if(!CurrentChar(IsIdentifier))
@@ -199,15 +199,21 @@ bool IsIdentifierToken(StringView view, int* length) {
 	return true;
 }
 
-bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword) {
+static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword) {
+	// Keyword token regex: {keyword}(?<=[ \n\t])
+	bool startsWithKeyword = false;
 	for(int i = 0; i < NUM_KEYWORDS; i++)
 		if(StrStartsWith((String*) &view, &s_LexerKeywords[i])) {
 			*keyword = LEXER_FIRST_KEYWORD_ENUM + i;
 			*length = s_LexerKeywords[i].length;
-			return true;
+			startsWithKeyword = true;
+			break;
 		}
 
-	return false;
+	if(!startsWithKeyword) return false;
+	if(!CurrentChar(IsWhitespace)) return false;
+
+	return true;
 }
 
 #define AddToken(tokenLen, tokenType) {\
@@ -222,10 +228,13 @@ bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword) {
 #undef CurrentChar
 #define CurrentChar() (CharAt((String*) &scriptView, 0))
 
-LexerTokenArray LexerTokenize(String* fileName, String* script, MemArena* context) {
+LexerTokenArray LexerTokenize(String fileName, String script, MemArena* context) {
 	LexerTokenArray tokens = LexerTokenArrayArenaAlloc(128, context);
 
-	StringView scriptView = SubString(script, 0, script->length);
+	if(tokens.capacity == 0)
+		return tokens;
+
+	StringView scriptView = SubString(&script, 0, script.length);
 	LexerTokenType keyword = LEXER_FIRST_KEYWORD_ENUM;
 	int tokenLength = 0;
 	int line = 1;
@@ -257,6 +266,8 @@ token:
 	} else if(IsNumberToken(scriptView, &tokenLength)) {
 		AddToken(tokenLength, TK_NUMBER);
 	} else if(IsKeywordToken(scriptView, &tokenLength, &keyword)) {
+		// StringView test = SubString((String*) &scriptView, 0, tokenLength);
+		// LogDebugV("Found token '%s", AsCString((String*) &test));
 		AddToken(tokenLength, keyword);
 	} else if(IsIdentifierToken(scriptView, &tokenLength)) {
 		AddToken(tokenLength, TK_IDENTIFIER);
@@ -271,7 +282,7 @@ token:
 		LogErrorV(
 			"Encountered an unknown token '%s' at %s:%d:%d",
 			AsCString((String*) &unknownTokenView),
-			AsCString(fileName),
+			AsCString(&fileName),
 			line,
 			column
 		);

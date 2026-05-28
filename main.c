@@ -2,7 +2,7 @@
 #include "include/errors.h"
 #include "include/memarena.h"
 #include "include/arrays.h"
-#include "include/lexer.h"
+#include "include/parser.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,19 +119,21 @@ int main(int argc, char** argv) {
 	Arguments args = ParseArguments(argc, argv);
 	MemArena context = CreateMemArena(CONTEXT_SIZE, malloc(CONTEXT_SIZE));
 
-	printf("Opening file %s\n", AsCString(&args.input));
+	printf("Opening file %s\n\n", AsCString(&args.input));
 	String contents = ReadFile(&args.input, &context);
 
-	LexerTokenArray tokens = LexerTokenize(&args.input, &contents, &context);
-
-	printf("Token array length %d\n", tokens.length);
-
+	LexerTokenArray tokens = LexerTokenize(args.input, contents, &context);
+	printf("Parsed %d tokens:\n", tokens.length);
 	for(int i = 0; i < tokens.length; i++) {
 		LexerToken token = {};
 		LexerTokenArrayGetValue(&tokens, i, &token);
 		printf("'%s',", AsCString((String*) &token.string));
 	}
-	printf("\n");
+	printf("\n\n");
+
+	ProgramAST ast = ParseTokens(tokens, &context);
+	printf("Allocated size for AST is %d bytes\n", ast._nodeDataCapacity);
+	ShowAST(ast, stdout);
 
 	free(context.buffer);
 	FreeArguments(&args);
