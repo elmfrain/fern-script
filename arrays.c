@@ -3,6 +3,7 @@
 #include "include/errors.h"
 
 ARRAY_TYPES(AS_ARRAY_FUNCS);
+ARRAY_TYPES(AS_ARRAY_STREAM_FUNCS);
 
 // --- All the code below this line is for prototyping new array functions, but is is not used in code outside this translation unit --- ///
 
@@ -66,4 +67,32 @@ void ArrayRemove(Array* array, int index, char* removedValue) {
 	if(removedValue)
 		*removedValue = array->items[index];
 	array->items[index] = array->items[array->length];
+}
+
+// --- Array streams --- //
+
+typedef struct {
+	StringArray array;
+	int position;
+} ArrayStream;
+
+ArrayStream CreateArrayStream(StringArray array) {
+	ArrayStream stream = {};
+	stream.array = array;
+	return stream;
+}
+
+bool ArrayStreamPeek(ArrayStream* stream, String* value) {
+	if(stream->position != stream->array.length)
+		return false;
+
+	*value = * StringArrayGet(&stream->array, stream->position);
+
+	return true;
+}
+
+bool ArrayStreamGet(ArrayStream* stream, String* value) {
+	bool ret = ArrayStreamPeek(stream, value);
+	stream->position++;
+	return ret;
 }

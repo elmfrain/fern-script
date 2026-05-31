@@ -122,6 +122,7 @@ int main(int argc, char** argv) {
 	printf("Opening file %s\n\n", AsCString(&args.input));
 	String contents = ReadFile(&args.input, &context);
 
+	// Parse file into a list of tokens
 	LexerTokenArray tokens = LexerTokenize(args.input, contents, &context);
 	printf("Parsed %d tokens:\n", tokens.length);
 	for(int i = 0; i < tokens.length; i++) {
@@ -131,9 +132,15 @@ int main(int argc, char** argv) {
 	}
 	printf("\n\n");
 
+	// Create an ast from tokens
 	ProgramAST ast = ParseTokens(tokens, &context);
 	printf("Allocated size for AST is %d bytes\n", ast._nodeDataCapacity);
 	ShowAST(ast, stdout);
+	printf("\n\n");
+
+	// Interperet the ast
+	// ScriptRuntime runtime = CreateScriptRuntime(&context);
+	// EvaluateAST(*runtime);
 
 	free(context.buffer);
 	FreeArguments(&args);

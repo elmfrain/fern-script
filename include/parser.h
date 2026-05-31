@@ -11,6 +11,7 @@
 	X(STATEMENT, Statement)\
 	X(EXPRESSION, Expression)\
 	X(NUMERIC_LITERAL, NumericLiteral)\
+	X(NULL_LITERAL, NullLiteral)\
 	X(IDENTIFIER, Identifier)\
 	X(BINARY_EXPR, BinaryExpr)
 
@@ -22,10 +23,12 @@ typedef enum {
 } NodeType;
 
 #define INHERIT_STATEMENT_NODE\
-	NodeType type;\
-	int numChildren;\
+	int index;\
 	int firstChildIndex;\
-	int nextSiblingIndex;
+	int lastChildIndex;\
+	int nextSiblingIndex;\
+	short numChildren;\
+	NodeType type;
 
 /* Statements do not evaluate to a value */
 typedef struct {
@@ -51,6 +54,10 @@ typedef struct {
 	double value;
 } NumericLiteral;
 
+typedef struct {
+	INHERIT_STATEMENT_NODE;
+} NullLiteral;
+
 /* Indentifiers likes variables and function names */
 typedef struct {
 	INHERIT_STATEMENT_NODE;
@@ -60,20 +67,18 @@ typedef struct {
 /* Two expressions separated by a binary operator */
 typedef struct {
 	INHERIT_STATEMENT_NODE;
-	int leftExprIndex;
-	int rightExprIndex;
-	StringView oper;
+	StringView op;
 } BinaryExpr;
 
 typedef struct {
 	int _currNodeIndex;
 	ProgramAST* _root;
-	int index;
+	int position;
 	int size;
 } NodeChildrenIterator;
 
-/* Get pointer to a node in the AST */
-Statement* NodeGet(ProgramAST* root, int index);
+/* Get pointer to a node in the AST from its index */
+Statement* NodeGetFromIndex(ProgramAST* root, int index);
 
 /* Start iterating through a node's children */
 NodeChildrenIterator NodeChildrenItr(ProgramAST* root, Statement* parent);

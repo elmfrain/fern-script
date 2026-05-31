@@ -109,4 +109,59 @@
 ARRAY_TYPES(AS_ARRAY_STRUCT)
 ARRAY_TYPES(AS_ARRAY_FUNC_DECLARATIONS)
 
+// --- Array streams (iterators) --- //
+
+#define AS_ARRAY_STREAM_STRUCT(type, name)\
+	typedef struct {\
+		name##Array array;\
+		int position;\
+	} name##ArrayStream;
+
+#define AS_ARRAY_STREAM_FUNC_DECLARATIONS(type, name)\
+	/* Create array stream from an array */\
+	name##ArrayStream name##ArrayStreamCreate(name##Array array);\
+	/* Tell if stream has another value to consume */\
+	bool name##ArrayStreamHasNext(name##ArrayStream* stream);\
+	/* Get next value from stream, but without consuming it */\
+	bool name##ArrayStreamPeek(name##ArrayStream* stream, type* value);\
+	/* Get next value from stream and consume it (goes to next position) */\
+	bool name##ArrayStreamGet(name##ArrayStream* stream, type* value);
+
+#define STREAM_ARRAY_THROW_IF_NULL(x, ret) {\
+	if(!x) {\
+		ThrowErrorF(NULL_POINTER_ACCESS,\
+			"%s: Tried to use a null stream array for param %s",\
+			__FUNCTION__,\
+			#x\
+		);\
+		return ret;\
+	}\
+}
+
+#define AS_ARRAY_STREAM_FUNCS(type, name)\
+	name##ArrayStream name##ArrayStreamCreate(name##Array array){\
+		name##ArrayStream stream = {};\
+		stream.array = array;\
+		return stream;\
+	}\
+	bool name##ArrayStreamHasNext(name##ArrayStream* stream) {\
+		return stream->position < stream->array.length;\
+	}\
+	bool name##ArrayStreamPeek(name##ArrayStream* stream, type* value) {\
+		STREAM_ARRAY_THROW_IF_NULL(stream, false);\
+		STREAM_ARRAY_THROW_IF_NULL(value, false);\
+		if(stream->position >= stream->array.length)\
+			return false;\
+		*value = * name##ArrayGet(&stream->array, stream->position);\
+		return true;\
+	}\
+	bool name##ArrayStreamGet(name##ArrayStream* stream, type* value) {\
+		bool ret = name##ArrayStreamPeek(stream, value);\
+		stream->position++;\
+		return ret;\
+	}
+
+ARRAY_TYPES(AS_ARRAY_STREAM_STRUCT)
+ARRAY_TYPES(AS_ARRAY_STREAM_FUNC_DECLARATIONS)
+
 #endif // ARRAY_H

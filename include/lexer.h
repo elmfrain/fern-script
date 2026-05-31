@@ -7,7 +7,8 @@
 
 /* List of keywords that is used in the scripting language. Can be transformed as enums and strings */
 #define LEXER_KEYWORDS(X)\
-	LEXER_FIRST_KEYWORD(X)
+	LEXER_FIRST_KEYWORD(X)\
+	X(NULL, null)
 
 /* Intermediate macro; should not be used! */
 #define _AS_KEYWORD_ENUM(NAME) NAME##_KEYWORD
@@ -42,6 +43,9 @@ typedef struct {
 
 LEXER_ARRAY_TYPES(AS_ARRAY_STRUCT)
 LEXER_ARRAY_TYPES(AS_ARRAY_FUNC_DECLARATIONS)
+
+LEXER_ARRAY_TYPES(AS_ARRAY_STREAM_STRUCT)
+LEXER_ARRAY_TYPES(AS_ARRAY_STREAM_FUNC_DECLARATIONS)
 
 LexerTokenArray LexerTokenize(String fileName, String script, MemArena* context);
 

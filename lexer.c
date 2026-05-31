@@ -14,6 +14,7 @@ static String s_LexerKeywords[] = {
 static const int NUM_KEYWORDS = sizeof(s_LexerKeywords) / sizeof(String);
 
 LEXER_ARRAY_TYPES(AS_ARRAY_FUNCS);
+LEXER_ARRAY_TYPES(AS_ARRAY_STREAM_FUNCS);
 
 static bool IsAlphabetical(char c) {
 	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');

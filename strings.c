@@ -183,6 +183,13 @@ bool StrIsEmpty(String* str) {
 	return str->length == 0;
 }
 
+bool StrEquals(String* str1, String* str2) {
+	STRING_THROW_IF_NULL(str1, false);
+	STRING_THROW_IF_NULL(str2, false);
+
+	return CmpStrings(str1, str2) == 0;
+}
+
 void ConcatCStr(String* str, const char* cstr) {
 	STRING_THROW_IF_NULL(str,);
 

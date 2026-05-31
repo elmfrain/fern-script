@@ -51,6 +51,9 @@ bool StrStartsWith(String* base, String* prefix);
 /* Check if a string is empty. */
 bool StrIsEmpty(String* str);
 
+/* Check if two strings are equal */
+bool StrEquals(String* str1, String* str2);
+
 /* Concatentate a c string to a String. It quitely fails if the String is at full capacity */
 void ConcatCStr(String* str, const char* cstr);
 
