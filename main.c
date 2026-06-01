@@ -3,6 +3,8 @@
 #include "include/memarena.h"
 #include "include/arrays.h"
 #include "include/parser.h"
+#include "include/interpereter.h"
+#include "include/strings.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,9 +14,11 @@
 #define CONTEXT_SIZE 65536
 
 const char* ArgsHelp =
-"Tokenize and parse EasyScript into an AST\n"\
+"Run a FernScript file. Must provide path to script file with '-i' or a command to evaluate with '-c'\n"\
 "  -h --help: Display this help message\n"\
-"  -i --input: Input code file to parse\n";
+"  -i --input: Script file to run\n"\
+"  -c --command: Command string to evaluate (instead of a file)\n"\
+"  -d --debug: Display detailed information (tokens, ast, etc.). Used for debugging\n";
 
 void SilenceErrors(ErrorData* e) {}
 
@@ -36,6 +40,8 @@ typedef struct {
 	MemArena _workBuffer;
 	StringArray _tokens;
 	String input;
+	String command;
+	bool debug;
 } Arguments;
 
 Arguments ParseArguments(int argc, char** argv) {
@@ -71,12 +77,18 @@ argFlag:
 		if(CharAt(&args.input, 0) == '-')
 			args.input = EmptyString();
 	}
+
+	if(ArgFlag("-d", "--debug"))
+		args.debug = true;
+
+	if(ArgFlag("-c", "--command"))
+		StringArrayGetValue(&args._tokens, i + 1, &args.command);
 loop:
 	if(++i < args._tokens.length)
 		goto argToken;
 
-	if(StrIsEmpty(&args.input)) {
-		fprintf(stderr, "You must provide the -i or --input flag\n");
+	if(StrIsEmpty(&args.input) && StrIsEmpty(&args.command)) {
+		fprintf(stderr, "You must provide a script's file path (with '-i') or a command (with '-c')\n");
 		exit(-1);
 	}
 
@@ -119,28 +131,43 @@ int main(int argc, char** argv) {
 	Arguments args = ParseArguments(argc, argv);
 	MemArena context = CreateMemArena(CONTEXT_SIZE, malloc(CONTEXT_SIZE));
 
-	printf("Opening file %s\n\n", AsCString(&args.input));
-	String contents = ReadFile(&args.input, &context);
+	String code = {};
+
+	if(!StrIsEmpty(&args.input)) {
+		if(args.debug) printf("Opening file %s\n\n", AsCString(&args.input));
+		ReadFile(&args.input, &context);
+	} else
+		code = args.command;
 
 	// Parse file into a list of tokens
-	LexerTokenArray tokens = LexerTokenize(args.input, contents, &context);
-	printf("Parsed %d tokens:\n", tokens.length);
-	for(int i = 0; i < tokens.length; i++) {
-		LexerToken token = {};
-		LexerTokenArrayGetValue(&tokens, i, &token);
-		printf("'%s',", AsCString((String*) &token.string));
+	LexerTokenArray tokens = LexerTokenize(args.input, code, &context);
+	if(args.debug) {
+		printf("Parsed %d tokens:\n", tokens.length);
+		for(int i = 0; i < tokens.length; i++) {
+			LexerToken token = {};
+			LexerTokenArrayGetValue(&tokens, i, &token);
+			printf("'%s',", AsCString((String*) &token.string));
+		}
+		printf("\n\n");
 	}
-	printf("\n\n");
 
 	// Create an ast from tokens
 	ProgramAST ast = ParseTokens(tokens, &context);
-	printf("Allocated size for AST is %d bytes\n", ast._nodeDataCapacity);
-	ShowAST(ast, stdout);
-	printf("\n\n");
+	if(args.debug) {
+		printf("Allocated size for AST is %d bytes\n", ast._nodeDataCapacity);
+		ShowAST(ast, stdout);
+		printf("\n\n");
+	}
 
 	// Interperet the ast
-	// ScriptRuntime runtime = CreateScriptRuntime(&context);
-	// EvaluateAST(*runtime);
+	FernRuntime runtime = CreateFernRuntime(ast, &context, MemArenaRemainingCapacity(&context));
+	if(args.debug)
+		printf("Allocated memory for runtime is %d bytes\n", runtime._memoryCapacity);
+	RuntimeValue* ret = EvaluateStatement(&runtime, (Statement*) &ast);
+
+	// Print the return value of the program
+	if(ret && ret->type == RT_NUMBER_VALUE)
+		printf("%f\n", ((RuntimeNumber*) ret)->value);
 
 	free(context.buffer);
 	FreeArguments(&args);

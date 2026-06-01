@@ -275,11 +275,20 @@ ProgramAST ParseTokens(LexerTokenArray tokens, MemArena* context) {
 		NodeAddChild(&ast, (Statement*) &ast, stmt);
 	}
 
-	LogDebugV("Root children count %d, memory used %d", ast.numChildren, ast._nextAlloc);
+	// LogDebugV("Root children count %d, memory used %d", ast.numChildren, ast._nextAlloc);
 
 	return ast;
 }
 
 void ShowAST(ProgramAST ast, FILE* file) {
 	_ShowAST(&ast, (Statement*) &ast, file, 0);
+}
+
+const char* NodeTypeAsString(NodeType type) {
+	const size_t listLen = (sizeof(s_NodeTypesStrings) / sizeof(s_NodeTypesStrings[0]));
+
+	if(type <= 0 || listLen <= type)
+		return "Unknown";
+
+	return s_NodeTypesStrings[(int) type];
 }

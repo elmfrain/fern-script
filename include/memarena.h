@@ -13,4 +13,7 @@ MemArena CreateMemArena(int capacity, void* mem);
 /* Allocate memory from the arena's buffer using linear allocation */
 void* MemArenaAlloc(MemArena* arena, int capacity);
 
+/* Tell the remaining capacity left of an arena */
+int MemArenaRemainingCapacity(MemArena* arena);
+
 #endif // MEM_ARENA_H

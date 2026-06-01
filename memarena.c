@@ -26,3 +26,7 @@ void* MemArenaAlloc(MemArena* arena, int capacity) {
 	arena->nextAlloc += capacity;
 	return mem;
 }
+
+int MemArenaRemainingCapacity(MemArena* arena) {
+	return arena->capacity - arena->nextAlloc;
+}

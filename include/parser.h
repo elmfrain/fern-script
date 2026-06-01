@@ -95,4 +95,7 @@ ProgramAST ParseTokens(LexerTokenArray tokens, MemArena* context);
 /* Print out the structure of the AST to a file */
 void ShowAST(ProgramAST ast, FILE* file);
 
+/* Tell the node type as a string */
+const char* NodeTypeAsString(NodeType type);
+
 #endif // PARSER_H
