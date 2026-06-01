@@ -41,7 +41,7 @@ static bool IsHexidecimal(char c) {
 }
 
 static bool IsBinaryOperator(char c) {
-	return c == '+' || c == '-' || c == '/' || c == '*' || c == '%';
+	return c == '+' || c == '-' || c == '/' || c == '*' || c == '%' || c == '^';
 }
 
 static bool IsUnaryOperator(char c) {

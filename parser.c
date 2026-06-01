@@ -102,6 +102,7 @@ static void NodeAddChild(ProgramAST* root, Statement* parent, Statement* child) 
 // AST parser funcs
 static Expression* ParsePrimaryExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseUnaryExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
+static Expression* ParseExponentialExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseAdditiveExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
@@ -166,8 +167,37 @@ static Expression* ParseUnaryExpression(ProgramAST* root, LexerTokenArrayStream*
 	return ParsePrimaryExpression(root, tokens);
 }
 
-static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
+static Expression* ParseExponentialExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
 	Expression* left = ParseUnaryExpression(root, tokens);
+	ReturnIfNull(left, NULL);
+
+	LexerToken token;
+	if(!LexerTokenArrayStreamPeek(tokens, &token))
+		return left;
+
+	while(TokenEquals(token, "^")) {
+		LexerTokenArrayStreamGet(tokens, &token);
+
+		Expression* right = ParseUnaryExpression(root, tokens);
+		if(!right) {
+			ThrowError(EXPECTED_EXPRESSION, "Expected an expression on the right hand side of an exponential expression");
+			return NULL;
+		}
+		BinaryExpr* binExpr = AllocBinaryExpr(root);
+		NodeAddChild(root, (Statement*) binExpr, (Statement*) left);
+		NodeAddChild(root, (Statement*) binExpr, (Statement*) right);
+		binExpr->op = token.string;
+
+		left = (Expression*) binExpr;
+
+		if(!LexerTokenArrayStreamPeek(tokens, &token)) break;
+	}
+
+	return left;
+}
+
+static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
+	Expression* left = ParseExponentialExpression(root, tokens);
 	ReturnIfNull(left, NULL);
 
 	LexerToken token;
@@ -177,7 +207,7 @@ static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArr
 	while(TokenEquals(token, "*") || TokenEquals(token, "/") || TokenEquals(token, "%")) {
 		LexerTokenArrayStreamGet(tokens, &token);
 
-		Expression* right = ParseUnaryExpression(root, tokens);
+		Expression* right = ParseExponentialExpression(root, tokens);
 		if(!right) {
 			ThrowError(EXPECTED_EXPRESSION, "Expected an expression on the right hand side of an multiplicative expression");
 			return NULL;

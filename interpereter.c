@@ -137,9 +137,11 @@ static RuntimeValue* EvaluateBinaryExpr(FernRuntime* runtime, BinaryExpr* bExpr)
 		value = left->value - right->value;
 	else if(BinaryExprOpEquals("*"))
 		value = left->value * right->value;
-	else if(BinaryExprOpEquals("/")){
+	else if(BinaryExprOpEquals("/")) {
 		if(right->value == 0.0) value = INFINITY;
 		else value = left->value / right->value;
+	} else if(BinaryExprOpEquals("^")) {
+		value = pow(left->value, right->value);
 	} else if(BinaryExprOpEquals("%")) {
 		if(right->value == 0.0) value = NAN;
 		else {
@@ -147,8 +149,7 @@ static RuntimeValue* EvaluateBinaryExpr(FernRuntime* runtime, BinaryExpr* bExpr)
 			value += left->value - floor(left->value);
 			value -= value < 0 ? 1 : 0;
 		}
-	}
-	else
+	} else
 		goto retNull;
 
 	PopRuntimeValue(runtime, rightSide);
