@@ -165,7 +165,8 @@ static int DetermineStackSize(int memoryCapacity) {
 	if(stackSize > STACK_SIZE_MAX)
 		return STACK_SIZE_MAX;
 
-	return stackSize;
+	// Make stack segment size a multiple of 16 bytes for memory alignment and better performance
+	return (stackSize + 15) & ~0xF;
 }
 
 FernRuntime CreateFernRuntime(ProgramAST root, MemArena* arena, int memoryCapacity) {
@@ -182,7 +183,7 @@ FernRuntime CreateFernRuntime(ProgramAST root, MemArena* arena, int memoryCapaci
 
 	// Allocate the stack near the end of the memory space
 	runtime._stack.size = DetermineStackSize(memoryCapacity);
-	runtime._stack.ptr = runtime._stack.size - 1;
+	runtime._stack.ptr = runtime._stack.size;
 	runtime._stack.segment = runtime._memory.mem + runtime._memory.size - runtime._stack.size;
 
 	return runtime;
