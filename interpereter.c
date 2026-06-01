@@ -145,6 +145,7 @@ static RuntimeValue* EvaluateBinaryExpr(FernRuntime* runtime, BinaryExpr* bExpr)
 		else {
 			value = (int64_t) left->value % (int64_t) right->value;
 			value += left->value - floor(left->value);
+			value -= value < 0 ? 1 : 0;
 		}
 	}
 	else
@@ -154,12 +155,40 @@ static RuntimeValue* EvaluateBinaryExpr(FernRuntime* runtime, BinaryExpr* bExpr)
 	PopRuntimeValue(runtime, leftSide);
 	Push(RuntimeNumber, result);
 	result->value = value;
-
 	return (RuntimeValue*) result;
 
 retNull:
 	PopRuntimeValue(runtime, rightSide);
 	PopRuntimeValue(runtime, leftSide);
+	return (RuntimeValue*) PushRuntimeNull(runtime);
+}
+
+#define UnaryExprOpEquals(oper) (StrEquals((String*) &uExpr->op, &ConstString(oper)))
+
+static RuntimeValue* EvaluateUnaryExpr(FernRuntime* runtime, UnaryExpr* uExpr) {
+	Eval(rightSide, NodeGetFromIndex(&runtime->ast, uExpr->firstChildIndex));
+
+	if(rightSide->type != RT_NUMBER_VALUE)
+		goto retNull;
+
+	RuntimeNumber* right = (RuntimeNumber*) rightSide;
+
+	double value = right->value;
+
+	if(UnaryExprOpEquals("-"))
+		value *= -1;
+	else if(UnaryExprOpEquals("+"))
+		value = value;
+	else
+		goto retNull;
+
+	PopRuntimeValue(runtime, rightSide);
+	Push(RuntimeNumber, result);
+	result->value = value;
+	return (RuntimeValue*) result;
+
+retNull:
+	PopRuntimeValue(runtime, rightSide);
 	return (RuntimeValue*) PushRuntimeNull(runtime);
 }
 
@@ -176,7 +205,7 @@ static int DetermineStackSize(int memoryCapacity) {
 	if(stackSize > STACK_SIZE_MAX)
 		return STACK_SIZE_MAX;
 
-	// Make stack segment size a multiple of 16 bytes for memory alignment and better performance
+	// Make stack segment size a multiple of 16 bytes for memory alignment resulting in better performance
 	return (stackSize + 15) & ~0xF;
 }
 
@@ -212,6 +241,8 @@ RuntimeValue* EvaluateStatement(FernRuntime* runtime, Statement* stmt) {
 		return EvaluateProgramAST(runtime, (ProgramAST*) stmt);
 	case BINARY_EXPR_NODE:
 		return EvaluateBinaryExpr(runtime, (BinaryExpr*) stmt);
+	case UNARY_EXPR_NODE:
+		return EvaluateUnaryExpr(runtime, (UnaryExpr*) stmt);
 	case NUMERIC_LITERAL_NODE:
 		return EvaluateNumericLiteral(runtime, (NumericLiteral*) stmt);
 	case NULL_LITERAL_NODE:

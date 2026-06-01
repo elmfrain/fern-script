@@ -44,6 +44,14 @@ static bool IsBinaryOperator(char c) {
 	return c == '+' || c == '-' || c == '/' || c == '*' || c == '%';
 }
 
+static bool IsUnaryOperator(char c) {
+	return c == '+' || c == '-';
+}
+
+static bool IsAnOperator(char c) {
+	return IsBinaryOperator(c) || IsUnaryOperator(c);
+}
+
 static bool IsPlusOrMinus(char c) {
 	return c == '+' || c == '-';
 }
@@ -260,8 +268,8 @@ token:
 		AddToken(1, TK_OPEN_PAREN);
 	} else if(CurrentChar() == ')') {
 		AddToken(1, TK_CLOSE_PAREN);
-	} else if(IsBinaryOperator(CurrentChar())) {
-		AddToken(1, TK_BINARY_OPERATOR);
+	} else if(IsAnOperator(CurrentChar())) {
+		AddToken(1, TK_OPERATOR);
 	} else if(CurrentChar() == '=') {
 		AddToken(1, TK_ASSIGNMENT_OPERATOR);
 	} else if(IsNumberToken(scriptView, &tokenLength)) {

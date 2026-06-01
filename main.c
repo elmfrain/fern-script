@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
 
 	if(args.debug){
 		printf("Stack ptr after evaluation is %d\n", runtime._stack.ptr);
-		printf("Stack capacity after evaluation is %d\n\n", runtime._stack.size - runtime._stack.ptr - 1);
+		printf("Stack capacity after evaluation is %d\n\n", runtime._stack.size - runtime._stack.ptr);
 	}
 
 	// Print the return value of the program

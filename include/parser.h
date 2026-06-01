@@ -13,7 +13,8 @@
 	X(NUMERIC_LITERAL, NumericLiteral)\
 	X(NULL_LITERAL, NullLiteral)\
 	X(IDENTIFIER, Identifier)\
-	X(BINARY_EXPR, BinaryExpr)
+	X(BINARY_EXPR, BinaryExpr)\
+	X(UNARY_EXPR, UnaryExpr)
 
 /* Spell out the name of a node's type as enums */
 #define AS_NODE_TYPE_ENUM(NAME, _) NAME##_NODE,
@@ -69,6 +70,12 @@ typedef struct {
 	INHERIT_STATEMENT_NODE;
 	StringView op;
 } BinaryExpr;
+
+/* One expression prefixed by a unary operator */
+typedef struct {
+	INHERIT_STATEMENT_NODE;
+	StringView op;
+} UnaryExpr;
 
 typedef struct {
 	int _currNodeIndex;
