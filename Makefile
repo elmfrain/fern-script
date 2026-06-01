@@ -1,7 +1,7 @@
 CC = gcc
 FLAGS = -fsanitize=address
 CFLAGS = -Wall -Werror -std=c99 -ggdb $(FLAGS)
-LDFLAGS = $(FLAGS)
+LDFLAGS = $(FLAGS) -lm
 BUILD_DIR = build
 SOURCES = main.c errors.c memarena.c strings.c arrays.c lexer.c parser.c interpereter.c
 TARGET := $(BUILD_DIR)/fernc

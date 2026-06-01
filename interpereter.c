@@ -4,6 +4,9 @@
 #include "include/errors.h"
 #include "include/parser.h"
 
+#include <stdint.h>
+#include <math.h>
+
 #define STACK_SIZE_FROM_TOTAL_MEM_SIZE_DIVISOR 4
 #define STACK_SIZE_MAX 131072
 
@@ -134,8 +137,16 @@ static RuntimeValue* EvaluateBinaryExpr(FernRuntime* runtime, BinaryExpr* bExpr)
 		value = left->value - right->value;
 	else if(BinaryExprOpEquals("*"))
 		value = left->value * right->value;
-	else if(BinaryExprOpEquals("/"))
-		value = left->value / right->value;
+	else if(BinaryExprOpEquals("/")){
+		if(right->value == 0.0) value = INFINITY;
+		else value = left->value / right->value;
+	} else if(BinaryExprOpEquals("%")) {
+		if(right->value == 0.0) value = NAN;
+		else {
+			value = (int64_t) left->value % (int64_t) right->value;
+			value += left->value - floor(left->value);
+		}
+	}
 	else
 		goto retNull;
 

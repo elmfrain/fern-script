@@ -147,7 +147,7 @@ static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArr
 	if(!LexerTokenArrayStreamPeek(tokens, &token))
 		return left;
 
-	while(TokenEquals(token, "*") || TokenEquals(token, "/")) {
+	while(TokenEquals(token, "*") || TokenEquals(token, "/") || TokenEquals(token, "%")) {
 		LexerTokenArrayStreamGet(tokens, &token);
 
 		Expression* right = ParsePrimaryExpression(root, tokens);
