@@ -36,11 +36,16 @@ typedef struct {
 } RuntimeNull;
 
 typedef struct {
-	RuntimeNull nullValue;
-	ProgramAST root;
-	void* _memory;
-	int _memoryCapacity;
-	int _nextAlloc;
+	ProgramAST ast;
+	struct {
+		void* mem;
+		int size;
+	} _memory;
+	struct{
+		void* segment;
+		int ptr;
+		int size;
+	} _stack;
 } FernRuntime;
 
 /* Allocate and setup an instance of a fern script runtime */

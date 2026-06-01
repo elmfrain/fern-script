@@ -136,8 +136,10 @@ int main(int argc, char** argv) {
 	if(!StrIsEmpty(&args.input)) {
 		if(args.debug) printf("Opening file %s\n\n", AsCString(&args.input));
 		ReadFile(&args.input, &context);
-	} else
+	} else {
 		code = args.command;
+		args.input = ConstString("<command>");
+	}
 
 	// Parse file into a list of tokens
 	LexerTokenArray tokens = LexerTokenize(args.input, code, &context);
@@ -161,9 +163,16 @@ int main(int argc, char** argv) {
 
 	// Interperet the ast
 	FernRuntime runtime = CreateFernRuntime(ast, &context, MemArenaRemainingCapacity(&context));
-	if(args.debug)
-		printf("Allocated memory for runtime is %d bytes\n", runtime._memoryCapacity);
+	if(args.debug) {
+		printf("Allocated memory for runtime is %d bytes\n", runtime._memory.size);
+		printf("Allocated stack for runtime is %d bytes\n", runtime._stack.size);
+	}
 	RuntimeValue* ret = EvaluateStatement(&runtime, (Statement*) &ast);
+
+	if(args.debug){
+		printf("Stack ptr after evaluation is %d\n", runtime._stack.ptr);
+		printf("Stack capacity after evaluation is %d\n\n", runtime._stack.size - runtime._stack.ptr - 1);
+	}
 
 	// Print the return value of the program
 	if(ret && ret->type == RT_NUMBER_VALUE)

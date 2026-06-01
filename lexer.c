@@ -201,7 +201,7 @@ static bool IsIdentifierToken(StringView view, int* length) {
 }
 
 static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword) {
-	// Keyword token regex: {keyword}(?<=[ \n\t])
+	// Keyword token regex: {keyword}((?=[\ \n\t])|$)
 	bool startsWithKeyword = false;
 	for(int i = 0; i < NUM_KEYWORDS; i++)
 		if(StrStartsWith((String*) &view, &s_LexerKeywords[i])) {
@@ -212,7 +212,7 @@ static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword
 		}
 
 	if(!startsWithKeyword) return false;
-	if(!CurrentChar(IsWhitespace)) return false;
+	if(!CurrentChar(IsWhitespace) && *length < view.length) return false;
 
 	return true;
 }
@@ -230,7 +230,7 @@ static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword
 #define CurrentChar() (CharAt((String*) &scriptView, 0))
 
 LexerTokenArray LexerTokenize(String fileName, String script, MemArena* context) {
-	LexerTokenArray tokens = LexerTokenArrayArenaAlloc(128, context);
+	LexerTokenArray tokens = LexerTokenArrayArenaAlloc(script.length, context);
 
 	if(tokens.capacity == 0)
 		return tokens;
