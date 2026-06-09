@@ -209,7 +209,7 @@ static bool IsIdentifierToken(StringView view, int* length) {
 }
 
 static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword) {
-	// Keyword token regex: {keyword}((?=[\ \n\t])|$)
+	// Keyword token regex: {keyword}((?=[a-zA-Z_])|$)
 	bool startsWithKeyword = false;
 	for(int i = 0; i < NUM_KEYWORDS; i++)
 		if(StrStartsWith((String*) &view, &s_LexerKeywords[i])) {
@@ -220,7 +220,7 @@ static bool IsKeywordToken(StringView view, int* length, LexerTokenType* keyword
 		}
 
 	if(!startsWithKeyword) return false;
-	if(!CurrentChar(IsWhitespace) && *length < view.length) return false;
+	if(CurrentChar(IsIdentifier) && *length < view.length) return false;
 
 	return true;
 }

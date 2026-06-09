@@ -41,11 +41,17 @@ typedef struct {
 		void* mem;
 		int size;
 	} _memory;
-	struct{
+	struct {
 		void* segment;
 		int ptr;
 		int size;
 	} _stack;
+	struct {
+		void* segment;
+		int nextAlloc;
+		int size;
+	} _heap;
+	struct VariableDictionary* _currentScope;
 } FernRuntime;
 
 /* Allocate and setup an instance of a fern script runtime */

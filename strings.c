@@ -209,3 +209,13 @@ void ConcatCStrN(String* str, int length, const char* cstr) {
 
 	str->length = i;
 }
+
+/* djb2 standard string hashing function */
+unsigned int HashString(String* str) {
+	int hash = 5381;
+
+	for(int i = 0; i < str->length; i++)
+		hash = ((hash << 5) + hash) + str->chars[i];
+
+	return hash;
+}

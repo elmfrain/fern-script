@@ -1,6 +1,6 @@
 CC = gcc
 FLAGS = -fsanitize=address
-CFLAGS = -Wall -Werror -std=c99 -ggdb $(FLAGS)
+CFLAGS = -Wall -Werror -Wno-unused-function -std=c99 -ggdb $(FLAGS)
 LDFLAGS = $(FLAGS) -lm
 BUILD_DIR = build
 SOURCES = main.c errors.c memarena.c strings.c arrays.c lexer.c parser.c interpereter.c

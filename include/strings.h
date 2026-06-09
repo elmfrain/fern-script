@@ -9,6 +9,7 @@
 #define ENSURE_STRING_LITERAL(x) ("" x "")
 #define STRING_LENGTH(x) ((sizeof(x) / sizeof(x[0])) - sizeof(x[0]))
 #define ConstString(x) (String) { ENSURE_STRING_LITERAL(x), STRING_LENGTH(x), STRING_LENGTH(x), true }
+#define ConstStringView(x) (StringView) { ENSURE_STRING_LITERAL(x), STRING_LENGTH(x), x }
 #define EmptyString() (String) {}
 
 typedef struct {
@@ -59,5 +60,8 @@ void ConcatCStr(String* str, const char* cstr);
 
 /* Concatentate a length bounded c string to a String. It quietly fails if the String is at full capacity */
 void ConcatCStrN(String* str, int length, const char* cstr);
+
+/* Return a hash of a string */
+unsigned int HashString(String* str);
 
 #endif // STRINGS_H
