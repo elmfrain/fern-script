@@ -8,7 +8,7 @@
 #include <math.h>
 #include <strings.h>
 
-#define GLOBAL_VARIABLE_SCOPE_CAPACITY 128
+#define GLOBAL_VARIABLE_SCOPE_CAPACITY 32
 #define STACK_SIZE_FROM_TOTAL_MEM_SIZE_DIVISOR 4
 #define STACK_SIZE_MAX 131072
 
@@ -240,7 +240,18 @@ static void RuntimePopScope(FernRuntime* runtime) {
 }
 
 static VariableDictionaryEntry* VariableDictionaryAllocCollidedEntry(VariableDictionary* dict, int* index) {
-	VariableDictionaryEntry* entry = NULL;
+	if(dict->firstFreeCollidedEntry == -1)
+		return NULL;
+
+	VariableDictionaryEntry* collidedEntries =
+		(VariableDictionaryEntry*) ((void*) dict + sizeof(VariableDictionary)) + dict->tableCapacity;
+	VariableDictionaryEntry* entry = &collidedEntries[dict->firstFreeCollidedEntry];
+	*index = dict->firstFreeCollidedEntry;
+
+	// Set to -1 to signify that there is no more space left for collided entries
+	// Set to the next free spot otherwise
+	dict->firstFreeCollidedEntry = entry->nextFree == 0 ? -1 : entry->nextFree;
+
 	return entry;
 }
 
@@ -258,6 +269,7 @@ static void VariableDictionaryInsert(VariableDictionary* dict, RuntimeVariable v
 	// No collisions, insert into table directly
 	if(current->var.value == NULL) {
 		current->var = variable;
+		current->next = -1;
 		dict->size++;
 		return;
 	}
@@ -270,6 +282,7 @@ static void VariableDictionaryInsert(VariableDictionary* dict, RuntimeVariable v
 
 	collidedEntry->var = variable;
 	collidedEntry->next = -1;
+	dict->size++;
 
 	VariableDictionaryEntry* collidedEntries = table + dict->tableCapacity;
 	for(;current->next != -1; current = collidedEntries + current->next); // Reach the end of collided list
@@ -278,7 +291,7 @@ static void VariableDictionaryInsert(VariableDictionary* dict, RuntimeVariable v
 	return;
 
 notEnoughSpace:
-	ThrowErrorF(\
+	ThrowErrorF(
 		FAILED_MEMORY_ALLOCATION,
 		"Not enough capacity in variable scope (capacity = %d) to store var '%s'",
 		dict->totalCapacity,
@@ -415,6 +428,13 @@ static RuntimeValue* EvaluateNumericLiteral(FernRuntime* runtime, NumericLiteral
 	return (RuntimeValue*) num;
 }
 
+static RuntimeValue* EvaluateBooleanLiteral(FernRuntime* runtime, BooleanLiteral* literal) {
+	Push(RuntimeBoolean, bol);
+
+	bol->value = literal->value;
+	return (RuntimeValue*) bol;
+}
+
 static RuntimeValue* EvaluateIdentifier(FernRuntime* runtime, Identifier* identifier) {
 	RuntimeValue* result = VariableDictionaryGet(runtime->_currentScope, identifier->symbol);
 
@@ -457,9 +477,14 @@ FernRuntime CreateFernRuntime(ProgramAST root, MemArena* arena, int memoryCapaci
 	runtime._heap.segment = runtime._memory.mem;
 
 	RuntimePushScope(&runtime, GLOBAL_VARIABLE_SCOPE_CAPACITY);
+
 	RuntimeNumber* num = PushRuntimeNumber(&runtime);
 	num->value = 3.14;
 	VariableDictionaryInsert(runtime._currentScope, (RuntimeVariable) { .value = (RuntimeValue*) num, .key = ConstStringView("x") });
+
+	RuntimeNumber* num1 = PushRuntimeNumber(&runtime);
+	num1->value = 2.71;
+	VariableDictionaryInsert(runtime._currentScope, (RuntimeVariable) { .value = (RuntimeValue*) num1, .key = ConstStringView("y") });
 
 	return runtime;
 }
@@ -480,6 +505,8 @@ RuntimeValue* EvaluateStatement(FernRuntime* runtime, Statement* stmt) {
 		return EvaluateUnaryExpr(runtime, (UnaryExpr*) stmt);
 	case NUMERIC_LITERAL_NODE:
 		return EvaluateNumericLiteral(runtime, (NumericLiteral*) stmt);
+	case BOOLEAN_LITERAL_NODE:
+		return EvaluateBooleanLiteral(runtime, (BooleanLiteral*) stmt);
 	case IDENTIFIER_NODE:
 		return EvaluateIdentifier(runtime, (Identifier*) stmt);
 	case NULL_LITERAL_NODE:

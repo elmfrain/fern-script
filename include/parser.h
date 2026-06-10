@@ -11,6 +11,7 @@
 	X(STATEMENT, Statement)\
 	X(EXPRESSION, Expression)\
 	X(NUMERIC_LITERAL, NumericLiteral)\
+	X(BOOLEAN_LITERAL, BooleanLiteral)\
 	X(NULL_LITERAL, NullLiteral)\
 	X(IDENTIFIER, Identifier)\
 	X(BINARY_EXPR, BinaryExpr)\
@@ -54,6 +55,12 @@ typedef struct {
 	INHERIT_STATEMENT_NODE;
 	double value;
 } NumericLiteral;
+
+/* Boolean as contants */
+typedef struct {
+	INHERIT_STATEMENT_NODE;
+	bool value;
+} BooleanLiteral;
 
 typedef struct {
 	INHERIT_STATEMENT_NODE;

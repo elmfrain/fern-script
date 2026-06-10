@@ -70,6 +70,9 @@ static void _ShowAST(ProgramAST* root, Statement* ast, FILE* file, int indent) {
 		case UNARY_EXPR_NODE:
 			fprintf(file, "%s", AsCString((String*) &((UnaryExpr*) ast)->op));
 			break;
+		case BOOLEAN_LITERAL_NODE:
+			fprintf(file, "%s", ((BooleanLiteral*) ast)->value ? "true" : "false");
+			break;
 		default:;
 	}
 
@@ -106,7 +109,7 @@ static Expression* ParseExponentialExpression(ProgramAST* root, LexerTokenArrayS
 static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseAdditiveExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
-static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens);
+static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens, bool* isEmpty);
 
 static Expression* ParsePrimaryExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
 	LexerToken token = {};
@@ -132,6 +135,13 @@ static Expression* ParsePrimaryExpression(ProgramAST* root, LexerTokenArrayStrea
 			return NULL;
 		}
 		return expr;
+	}
+	case TK_TRUE_KEYWORD:
+	case TK_FALSE_KEYWORD: {
+		BooleanLiteral* bol = AllocBooleanLiteral(root);
+		ReturnIfNull(bol, NULL);
+		bol->value = token.type == TK_TRUE_KEYWORD;
+		return (Expression*) bol;
 	}
 	case TK_NULL_KEYWORD: {
 		NullLiteral* null = AllocNullLiteral(root);
@@ -258,8 +268,27 @@ static Expression* ParseExpression(ProgramAST* root, LexerTokenArrayStream* toke
 	return ParseAdditiveExpression(root, tokens);
 }
 
-static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens) {
-	return (Statement*) ParseExpression(root, tokens);
+static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens, bool* isEmpty) {
+	LexerToken token = {};
+	// Handle empty statements
+	if(LexerTokenArrayStreamPeek(tokens, &token) && (token.type == TK_SEMICOLON || token.type == TK_NEWLINE)){
+		LexerTokenArrayStreamGet(tokens, &token);
+		*isEmpty = true;
+		return NULL;
+	}
+
+	isEmpty = false;
+
+	Statement* stmt = (Statement*) ParseExpression(root, tokens);
+
+	// Expect a statement closure
+	bool isEof = !LexerTokenArrayStreamGet(tokens, &token);
+	if(!isEof && token.type != TK_SEMICOLON && token.type != TK_NEWLINE) {
+		ThrowError(EXPECTED_TOKEN, "Expected a statement closure either with a newline or a semicolon");
+		return NULL;
+	}
+
+	return stmt;
 }
 
 Statement* NodeGetFromIndex(ProgramAST* root, int index) {
@@ -326,9 +355,10 @@ ProgramAST ParseTokens(LexerTokenArray tokens, MemArena* context) {
 	}
 
 	LexerTokenArrayStream tokensStream = LexerTokenArrayStreamCreate(tokens);
+	bool isEmptyStatement;
 	while(LexerTokenArrayStreamHasNext(&tokensStream)) {
-		Statement* stmt = ParseStatement(&ast, &tokensStream);
-		if(!stmt) return (ProgramAST) {};
+		Statement* stmt = ParseStatement(&ast, &tokensStream, &isEmptyStatement);
+		if(!stmt && !isEmptyStatement) return (ProgramAST) {}; // Return empty AST when there was a parsing error
 		NodeAddChild(&ast, (Statement*) &ast, stmt);
 	}
 

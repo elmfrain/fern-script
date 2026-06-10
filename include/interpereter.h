@@ -7,6 +7,7 @@
 /* List of values the runtime keeps track of. Can be transformed as enums and typedefs */
 #define RUNTIME_VALUES(X)\
 	X(NUMBER, RuntimeNumber)\
+	X(BOOLEAN, RuntimeBoolean)\
 	X(NULL, RuntimeNull)
 
 /* Intermetidate macro, do not use! */
@@ -30,6 +31,11 @@ typedef struct {
 	INHERIT_RUNTIME_VALUE;
 	double value;
 } RuntimeNumber;
+
+typedef struct {
+	INHERIT_RUNTIME_VALUE;
+	bool value;
+} RuntimeBoolean;
 
 typedef struct {
 	INHERIT_RUNTIME_VALUE

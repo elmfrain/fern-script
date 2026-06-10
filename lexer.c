@@ -257,17 +257,17 @@ token:
 	}
 
 	if(CurrentChar() == '\n') {
-		scriptView = SubString((String*) &scriptView, 1, scriptView.length - 1);
+		AddToken(1, TK_NEWLINE);
 		line++;
 		column = 1;
-		goto token;
 	} else if(IsWhitespace(CurrentChar())) {
 		scriptView = SubString((String*) &scriptView, 1, scriptView.length - 1);
-		goto token;
 	} else if(CurrentChar() == '(') {
 		AddToken(1, TK_OPEN_PAREN);
 	} else if(CurrentChar() == ')') {
 		AddToken(1, TK_CLOSE_PAREN);
+	} else if(CurrentChar() == ';') {
+		AddToken(1, TK_SEMICOLON);
 	} else if(IsAnOperator(CurrentChar())) {
 		AddToken(1, TK_OPERATOR);
 	} else if(CurrentChar() == '=') {
@@ -275,8 +275,6 @@ token:
 	} else if(IsNumberToken(scriptView, &tokenLength)) {
 		AddToken(tokenLength, TK_NUMBER);
 	} else if(IsKeywordToken(scriptView, &tokenLength, &keyword)) {
-		// StringView test = SubString((String*) &scriptView, 0, tokenLength);
-		// LogDebugV("Found token '%s", AsCString((String*) &test));
 		AddToken(tokenLength, keyword);
 	} else if(IsIdentifierToken(scriptView, &tokenLength)) {
 		AddToken(tokenLength, TK_IDENTIFIER);

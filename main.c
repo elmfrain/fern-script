@@ -148,7 +148,10 @@ int main(int argc, char** argv) {
 		for(int i = 0; i < tokens.length; i++) {
 			LexerToken token = {};
 			LexerTokenArrayGetValue(&tokens, i, &token);
-			printf("'%s',", AsCString((String*) &token.string));
+			if(token.type == TK_NEWLINE)
+				printf("\\n',");
+			else
+				printf("'%s',", AsCString((String*) &token.string));
 		}
 		printf("\n\n");
 	}
@@ -175,8 +178,17 @@ int main(int argc, char** argv) {
 	}
 
 	// Print the return value of the program
-	if(ret && ret->type == RT_NUMBER_VALUE)
+	switch(ret->type) {
+	case RT_NUMBER_VALUE:
 		printf("%f\n", ((RuntimeNumber*) ret)->value);
+		break;
+	case RT_NULL_VALUE:
+		printf("null\n");
+		break;
+	case RT_BOOLEAN_VALUE:
+		printf("%s\n", ((RuntimeBoolean*) ret)->value ? "true" : "false");
+		break;
+	}
 
 	free(context.buffer);
 	FreeArguments(&args);

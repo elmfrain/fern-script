@@ -8,7 +8,9 @@
 /* List of keywords that is used in the scripting language. Can be transformed as enums and strings */
 #define LEXER_KEYWORDS(X)\
 	LEXER_FIRST_KEYWORD(X)\
-	X(NULL, null)
+	X(NULL, null)\
+	X(TRUE, true)\
+	X(FALSE, false)
 
 /* Intermediate macro; should not be used! */
 #define _AS_KEYWORD_ENUM(NAME) NAME##_KEYWORD
@@ -25,6 +27,8 @@
 typedef enum {
 	TK_OPEN_PAREN,
 	TK_CLOSE_PAREN,
+	TK_SEMICOLON,
+	TK_NEWLINE,
 	TK_OPERATOR,
 	TK_ASSIGNMENT_OPERATOR,
 	TK_NUMBER,
