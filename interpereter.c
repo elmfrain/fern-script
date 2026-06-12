@@ -16,7 +16,8 @@
 
 typedef struct {
 	RuntimeValue* value;
-	StringView key;
+	StringView symbol;
+	bool isConst;
 } RuntimeVariable;
 
 /*
@@ -84,6 +85,19 @@ typedef struct VariableDictionary {
 	}\
 	void Pop##TYPE(FernRuntime* runtime) {\
 		RuntimeStackDealloc(runtime, sizeof(TYPE));\
+	}\
+	TYPE* Alloc##TYPE(FernRuntime* runtime) {\
+		TYPE* newValue = RuntimeHeapAlloc(runtime, sizeof(TYPE));\
+		if(!newValue) {\
+			ThrowErrorF(\
+				FAILED_MEMORY_ALLOCATION,\
+				"Insufficient free space when allocating '%s' runtime value onto the heap",\
+				#TYPE\
+			);\
+			return NULL;\
+		}\
+		newValue->type = _AS_RUNTIME_VALUE_TYPE_ENUM(NAME##_VALUE);\
+		return newValue;\
 	}
 
 // static const char* s_RuntimeValueTypesStrings[] = {
@@ -175,6 +189,25 @@ static void RuntimeHeapDealloc(FernRuntime* runtime, void* mem) {
 }
 
 /*
+ * Copy a runtime value into the heap. This is usually used for copying runtime variables
+ * from the stack onto the heap
+ */
+static RuntimeValue* AllocRuntimeValue(FernRuntime* runtime, RuntimeValue* value) {
+	if(!value)
+		return NULL;
+
+	int valueSize =  s_RuntimeValueTypeSizes[(int) value->type];
+	char* heapValueBuffer = RuntimeHeapAlloc(runtime, valueSize);
+	if(!heapValueBuffer)
+		return NULL;
+
+	for(int i = 0; i < valueSize; i++)
+		heapValueBuffer[i] = ((char*) value)[i];
+
+	return (RuntimeValue*) heapValueBuffer;
+}
+
+/*
  * Scope variable dictionary functions.
  * Scope and VariableDictionary terms are used interchangibly, but the
  * important distinction is that a scope has a variable dictionary, but
@@ -255,16 +288,47 @@ static VariableDictionaryEntry* VariableDictionaryAllocCollidedEntry(VariableDic
 	return entry;
 }
 
-/* Insert a variable into a variable scope */
-static void VariableDictionaryInsert(VariableDictionary* dict, RuntimeVariable variable) {
+static VariableDictionaryEntry* VariableDictionaryGet(VariableDictionary* dict, StringView key) {
+	if(!dict)
+		return NULL;
+
+	VariableDictionaryEntry* table = (VariableDictionaryEntry*) ((void*) dict + sizeof(VariableDictionary));
+	int tableIndex = HashString((String*) &key) % dict->tableCapacity;
+	VariableDictionaryEntry* current = &table[tableIndex];
+	// Not found
+	if(current->var.value == NULL)
+		goto tryParent;
+
+	VariableDictionaryEntry* collidedEntries = table + dict->tableCapacity;
+	for(;; current = collidedEntries + current->next) {
+		if(StrEquals((String*) &current->var.symbol, (String*) &key))
+			return current;
+		if(current->next == -1) break;
+	}
+
+tryParent:
+	if(!dict->parent)
+		return NULL;
+
+	return VariableDictionaryGet(dict->parent, key);
+}
+
+/* Insert a variable or set an existing variable into a variable scope */
+static void VariableDictionarySet(VariableDictionary* dict, RuntimeVariable variable) {
 	if(!dict)
 		return;
+
+	VariableDictionaryEntry* existingVariable = VariableDictionaryGet(dict, variable.symbol);
+	if(existingVariable) {
+		existingVariable->var = variable;
+		return;
+	}
 
 	if(dict->totalCapacity <= dict->size)
 		goto notEnoughSpace;
 
 	VariableDictionaryEntry* table = (VariableDictionaryEntry*) ((void*) dict + sizeof(VariableDictionary));
-	int tableIndex = HashString((String*) &variable.key) % dict->tableCapacity;
+	int tableIndex = HashString((String*) &variable.symbol) % dict->tableCapacity;
 	VariableDictionaryEntry* current = &table[tableIndex];
 	// No collisions, insert into table directly
 	if(current->var.value == NULL) {
@@ -295,34 +359,9 @@ notEnoughSpace:
 		FAILED_MEMORY_ALLOCATION,
 		"Not enough capacity in variable scope (capacity = %d) to store var '%s'",
 		dict->totalCapacity,
-		AsCString((String*) &variable.key)
+		AsCString((String*) &variable.symbol)
 	);
 	return;
-}
-
-static RuntimeValue* VariableDictionaryGet(VariableDictionary* dict, StringView key) {
-	if(!dict)
-		return NULL;
-
-	VariableDictionaryEntry* table = (VariableDictionaryEntry*) ((void*) dict + sizeof(VariableDictionary));
-	int tableIndex = HashString((String*) &key) % dict->tableCapacity;
-	VariableDictionaryEntry* current = &table[tableIndex];
-	// Not found
-	if(current->var.value == NULL)
-		goto tryParent;
-
-	VariableDictionaryEntry* collidedEntries = table + dict->tableCapacity;
-	for(;; current = collidedEntries + current->next) {
-		if(StrEquals((String*) &current->var.key, (String*) &key))
-			return current->var.value;
-		if(current->next == -1) break;
-	}
-
-tryParent:
-	if(!dict->parent)
-		return NULL;
-
-	return VariableDictionaryGet(dict->parent, key);
 }
 
 RUNTIME_VALUES(AS_RUNTIME_VALUE_FUNCS);
@@ -341,6 +380,90 @@ static RuntimeValue* EvaluateProgramAST(FernRuntime* runtime, ProgramAST* progra
 		return (RuntimeValue*) PushRuntimeNull(runtime);
 
 	return lastEvaluated;
+}
+
+static RuntimeValue* EvaluateVariableDeclaration(FernRuntime* runtime, VariableDeclaration* varDecl) {
+	NodeChildrenIterator i = NodeChildrenItr(&runtime->ast, (Statement*) varDecl);
+
+	VariableDictionaryEntry* var = VariableDictionaryGet(runtime->_currentScope, varDecl->symbol);
+	if(var) {
+		ThrowErrorF(REDECLARING_VARIABLE,
+			"Cannot redeclare variable '%s'",
+			AsCString((String*) &varDecl->symbol)
+		);
+		return NULL;
+	}
+
+	RuntimeVariable newVar = {
+		.value = (RuntimeValue*) AllocRuntimeNull(runtime),
+		.symbol = varDecl->symbol
+	};
+	VariableDictionarySet(runtime->_currentScope, newVar);
+
+	Eval(rightSide, NodeChildrenGet(&i));
+
+	if(varDecl->isConst) {
+		var = VariableDictionaryGet(runtime->_currentScope, varDecl->symbol);
+		var->var.isConst = true;
+	}
+
+	PopRuntimeValue(runtime, rightSide);
+	return (RuntimeValue*) PushRuntimeNull(runtime);
+}
+
+static RuntimeValue* EvaluateAssignmentExpr(FernRuntime* runtime, AssignmentExpr* asgnExpr) {
+	NodeChildrenIterator i = NodeChildrenItr(&runtime->ast, (Statement*) asgnExpr);
+
+	Identifier* identifier = (Identifier*) NodeChildrenGet(&i);
+	VariableDictionaryEntry* var = VariableDictionaryGet(runtime->_currentScope, identifier->symbol);
+
+	if(!var) {
+		ThrowErrorF(UNDECLARED_VARIABLE,
+			"Cannot assign a value to undeclared variable '%s'",
+			AsCString((String*) &identifier->symbol)
+		);
+		return NULL;
+	}
+
+	if(var->var.isConst) {
+		ThrowErrorF(CONST_REASSIGNMENT,
+			"Cannot reassign a value to const variable '%s'",
+			AsCString((String*) &identifier->symbol)
+		);
+		return NULL;
+	}
+
+	NodeChildrenNext(&i);
+	Eval(rightSide, NodeChildrenGet(&i));
+
+	RuntimeValue* leftSide = var->var.value;
+
+	if(leftSide->type == RT_NUMBER_VALUE && rightSide->type == RT_NUMBER_VALUE) {
+		RuntimeNumber* left = (RuntimeNumber*) leftSide;
+		RuntimeNumber* right = (RuntimeNumber*) rightSide;
+		left->value = right->value;;
+		return rightSide;
+	}
+
+	/*
+	 * Heap Assign
+	 * This part of the code should be changed!!! The variables should be refrenced counted
+	 * and garbage collected since not all assignments garauntee that the original variable
+	 * will be unused (it may be refrenced by other variables or collections).
+	 */
+	RuntimeHeapDealloc(runtime, leftSide);
+	RuntimeValue* newLeft = AllocRuntimeValue(runtime, rightSide);
+	if(!newLeft) {
+		ThrowErrorF(
+			FAILED_MEMORY_ALLOCATION,
+			"Insufficient free space when allocating runtime value (type=%d) onto the heap",
+			rightSide->type
+		);
+		return NULL;
+	}
+
+	var->var.value = newLeft;
+	return rightSide;
 }
 
 #define BinaryExprOpEquals(oper) (StrEquals((String*) &bExpr->op, &ConstString(oper)))
@@ -436,12 +559,12 @@ static RuntimeValue* EvaluateBooleanLiteral(FernRuntime* runtime, BooleanLiteral
 }
 
 static RuntimeValue* EvaluateIdentifier(FernRuntime* runtime, Identifier* identifier) {
-	RuntimeValue* result = VariableDictionaryGet(runtime->_currentScope, identifier->symbol);
+	VariableDictionaryEntry* result = VariableDictionaryGet(runtime->_currentScope, identifier->symbol);
 
 	if(!result)
 		return (RuntimeValue*) PushRuntimeNull(runtime);
 
-	return PushRuntimeValue(runtime, result);
+	return PushRuntimeValue(runtime, result->var.value);
 }
 
 static int DetermineStackSize(int memoryCapacity) {
@@ -478,14 +601,6 @@ FernRuntime CreateFernRuntime(ProgramAST root, MemArena* arena, int memoryCapaci
 
 	RuntimePushScope(&runtime, GLOBAL_VARIABLE_SCOPE_CAPACITY);
 
-	RuntimeNumber* num = PushRuntimeNumber(&runtime);
-	num->value = 3.14;
-	VariableDictionaryInsert(runtime._currentScope, (RuntimeVariable) { .value = (RuntimeValue*) num, .key = ConstStringView("x") });
-
-	RuntimeNumber* num1 = PushRuntimeNumber(&runtime);
-	num1->value = 2.71;
-	VariableDictionaryInsert(runtime._currentScope, (RuntimeVariable) { .value = (RuntimeValue*) num1, .key = ConstStringView("y") });
-
 	return runtime;
 }
 
@@ -499,6 +614,10 @@ RuntimeValue* EvaluateStatement(FernRuntime* runtime, Statement* stmt) {
 	switch(stmt->type) {
 	case PROGRAM_AST_NODE:
 		return EvaluateProgramAST(runtime, (ProgramAST*) stmt);
+	case VARIABLE_DECLARATION_NODE:
+		return EvaluateVariableDeclaration(runtime, (VariableDeclaration*) stmt);
+	case ASSIGNMENT_EXPR_NODE:
+		return EvaluateAssignmentExpr(runtime, (AssignmentExpr*) stmt);
 	case BINARY_EXPR_NODE:
 		return EvaluateBinaryExpr(runtime, (BinaryExpr*) stmt);
 	case UNARY_EXPR_NODE:

@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
 
 	if(!StrIsEmpty(&args.input)) {
 		if(args.debug) printf("Opening file %s\n\n", AsCString(&args.input));
-		ReadFile(&args.input, &context);
+		code = ReadFile(&args.input, &context);
 	} else {
 		code = args.command;
 		args.input = ConstString("<command>");

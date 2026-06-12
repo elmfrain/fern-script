@@ -73,6 +73,11 @@ static void _ShowAST(ProgramAST* root, Statement* ast, FILE* file, int indent) {
 		case BOOLEAN_LITERAL_NODE:
 			fprintf(file, "%s", ((BooleanLiteral*) ast)->value ? "true" : "false");
 			break;
+		case VARIABLE_DECLARATION_NODE: {
+			VariableDeclaration* varDecl = (VariableDeclaration*) ast;
+			fprintf(file, "%s %s", varDecl->isConst ? "const" : "let", AsCString((String*) &varDecl->symbol));
+			break;
+		}
 		default:;
 	}
 
@@ -108,7 +113,8 @@ static Expression* ParseUnaryExpression(ProgramAST* root, LexerTokenArrayStream*
 static Expression* ParseExponentialExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseMultiplicativeExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Expression* ParseAdditiveExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
-static Expression* ParseExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
+static Expression* ParseAssignmentExpression(ProgramAST* root, LexerTokenArrayStream* tokens);
+static Statement* ParseVariableDeclaration(ProgramAST* root, LexerTokenArrayStream* tokens);
 static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens, bool* isEmpty);
 
 static Expression* ParsePrimaryExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
@@ -129,7 +135,7 @@ static Expression* ParsePrimaryExpression(ProgramAST* root, LexerTokenArrayStrea
 		return (Expression*) num;
 	}
 	case TK_OPEN_PAREN: {
-		Expression* expr = ParseExpression(root, tokens);
+		Expression* expr = ParseAssignmentExpression(root, tokens);
 		if(!LexerTokenArrayStreamGet(tokens, &token) || token.type != TK_CLOSE_PAREN) {
 			ThrowError(EXPECTED_TOKEN, "Expected a closing parenthesis ')'");
 			return NULL;
@@ -264,12 +270,79 @@ static Expression* ParseAdditiveExpression(ProgramAST* root, LexerTokenArrayStre
 	return left;
 }
 
-static Expression* ParseExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
-	return ParseAdditiveExpression(root, tokens);
+static Expression* ParseAssignmentExpression(ProgramAST* root, LexerTokenArrayStream* tokens) {
+	Expression* left = ParseAdditiveExpression(root, tokens);
+	ReturnIfNull(left, NULL);
+
+	if(left->type != IDENTIFIER_NODE)
+		return left;
+
+	LexerToken token;
+	if(!LexerTokenArrayStreamPeek(tokens, &token))
+		return left;
+
+	if(token.type != TK_ASSIGNMENT)
+		return left;
+
+	LexerTokenArrayStreamGet(tokens, &token); // Consume assignment operator
+
+	Expression* right = ParseAssignmentExpression(root, tokens);
+	if(!right) {
+		ThrowError(EXPECTED_EXPRESSION, "Expected an expression on the right hand side of an assignment expression");
+		return NULL;
+	}
+
+	AssignmentExpr* asgnExpr = AllocAssignmentExpr(root);
+	NodeAddChild(root, (Statement*) asgnExpr, (Statement*) left);
+	NodeAddChild(root, (Statement*) asgnExpr, (Statement*) right);
+
+	return (Expression*) asgnExpr;
+}
+
+static Statement* ParseVariableDeclaration(ProgramAST* root, LexerTokenArrayStream* tokens) {
+	LexerToken token;
+
+	if(!LexerTokenArrayStreamPeek(tokens, &token))
+		return NULL;
+
+	if(token.type != TK_LET_KEYWORD && token.type != TK_CONST_KEYWORD)
+		return (Statement*) ParseAssignmentExpression(root, tokens);
+
+	LexerTokenArrayStreamGet(tokens, &token); // consume the 'let' or 'const' token
+
+	VariableDeclaration* varDecl = AllocVariableDeclaration(root);
+	Expression* assignmentExpr = ParseAssignmentExpression(root, tokens);
+	varDecl->isConst = token.type == TK_CONST_KEYWORD;
+
+	if(!assignmentExpr) {
+		ThrowError(EXPECTED_EXPRESSION, "Expected an expression on the right hand side of a variable declaration");
+		return NULL;
+	}
+	if(varDecl->isConst && assignmentExpr->type != ASSIGNMENT_EXPR_NODE) {
+		ThrowError(EXPECTED_EXPRESSION, "Expected an assignment expression on the right hand side of a const variable declaration");
+		return NULL;
+	}
+	if(assignmentExpr->type != IDENTIFIER_NODE && assignmentExpr->type != ASSIGNMENT_EXPR_NODE) {
+		ThrowError(EXPECTED_EXPRESSION, "Expected an identifier on the right hand side of a variable declaration");
+		return NULL;
+	}
+
+	if(assignmentExpr->type == IDENTIFIER_NODE)
+		varDecl->symbol = ((Identifier*) assignmentExpr)->symbol;
+	else {
+		NodeChildrenIterator i = NodeChildrenItr(root, (Statement*) assignmentExpr);
+		varDecl->symbol = ((Identifier*) NodeChildrenGet(&i))->symbol;
+	}
+
+	NodeAddChild(root, (Statement*) varDecl, (Statement*) assignmentExpr);
+
+	return (Statement*) varDecl;
 }
 
 static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens, bool* isEmpty) {
-	LexerToken token = {};
+	LexerToken token;
+	*isEmpty = false;
+
 	// Handle empty statements
 	if(LexerTokenArrayStreamPeek(tokens, &token) && (token.type == TK_SEMICOLON || token.type == TK_NEWLINE)){
 		LexerTokenArrayStreamGet(tokens, &token);
@@ -277,9 +350,7 @@ static Statement* ParseStatement(ProgramAST* root, LexerTokenArrayStream* tokens
 		return NULL;
 	}
 
-	isEmpty = false;
-
-	Statement* stmt = (Statement*) ParseExpression(root, tokens);
+	Statement* stmt = ParseVariableDeclaration(root, tokens);
 
 	// Expect a statement closure
 	bool isEof = !LexerTokenArrayStreamGet(tokens, &token);
@@ -359,7 +430,7 @@ ProgramAST ParseTokens(LexerTokenArray tokens, MemArena* context) {
 	while(LexerTokenArrayStreamHasNext(&tokensStream)) {
 		Statement* stmt = ParseStatement(&ast, &tokensStream, &isEmptyStatement);
 		if(!stmt && !isEmptyStatement) return (ProgramAST) {}; // Return empty AST when there was a parsing error
-		NodeAddChild(&ast, (Statement*) &ast, stmt);
+		if(!isEmptyStatement) NodeAddChild(&ast, (Statement*) &ast, stmt);
 	}
 
 	// LogDebugV("Root children count %d, memory used %d", ast.numChildren, ast._nextAlloc);

@@ -271,7 +271,7 @@ token:
 	} else if(IsAnOperator(CurrentChar())) {
 		AddToken(1, TK_OPERATOR);
 	} else if(CurrentChar() == '=') {
-		AddToken(1, TK_ASSIGNMENT_OPERATOR);
+		AddToken(1, TK_ASSIGNMENT);
 	} else if(IsNumberToken(scriptView, &tokenLength)) {
 		AddToken(tokenLength, TK_NUMBER);
 	} else if(IsKeywordToken(scriptView, &tokenLength, &keyword)) {

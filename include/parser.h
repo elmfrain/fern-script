@@ -10,6 +10,8 @@
 	X(PROGRAM_AST, ProgramAST)\
 	X(STATEMENT, Statement)\
 	X(EXPRESSION, Expression)\
+	X(VARIABLE_DECLARATION, VariableDeclaration)\
+	X(ASSIGNMENT_EXPR, AssignmentExpr)\
 	X(NUMERIC_LITERAL, NumericLiteral)\
 	X(BOOLEAN_LITERAL, BooleanLiteral)\
 	X(NULL_LITERAL, NullLiteral)\
@@ -49,6 +51,16 @@ typedef struct {
 	int _nodeDataCapacity;
 	int _nextAlloc;
 } ProgramAST;
+
+typedef struct {
+	INHERIT_STATEMENT_NODE;
+	StringView symbol;
+	bool isConst;
+} VariableDeclaration;
+
+typedef struct {
+	INHERIT_STATEMENT_NODE;
+} AssignmentExpr;
 
 /* Number as constants */
 typedef struct {

@@ -10,7 +10,8 @@
 	LEXER_FIRST_KEYWORD(X)\
 	X(NULL, null)\
 	X(TRUE, true)\
-	X(FALSE, false)
+	X(FALSE, false)\
+	X(CONST, const)
 
 /* Intermediate macro; should not be used! */
 #define _AS_KEYWORD_ENUM(NAME) NAME##_KEYWORD
@@ -30,7 +31,7 @@ typedef enum {
 	TK_SEMICOLON,
 	TK_NEWLINE,
 	TK_OPERATOR,
-	TK_ASSIGNMENT_OPERATOR,
+	TK_ASSIGNMENT,
 	TK_NUMBER,
 	TK_IDENTIFIER,
 	LEXER_KEYWORDS(AS_KEYWORD_ENUM)
